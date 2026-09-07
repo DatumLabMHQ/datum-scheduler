@@ -1,0 +1,12 @@
+name = "datum-scheduler"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+account_id = "c9bf3d8e875ffe933a9bf895695e0fd1"
+
+# GitHub's own cron scheduler delays runs by hours under load (the hourly platform job ran four
+# times in one night). This worker is the clock: each trigger dispatches the matching workflow
+# through the GitHub API, on time. Secret: GITHUB_TOKEN (fine-grained, Actions: write on the repos).
+[triggers]
+# Workers Free allows 5 cron triggers per account and the RWA worker uses some, so this worker
+# ticks once every 5 minutes and decides from the clock what is due (see PLAN in src/index.ts).
+crons = ["*/5 * * * *"]

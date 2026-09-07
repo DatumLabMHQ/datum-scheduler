@@ -1,0 +1,44 @@
+export interface Env { GITHUB_TOKEN: string }
+
+type Job = { repo: string; workflow: string; inputs?: Record<string, string>; when: (m: number, h: number) => boolean };
+
+// The worker ticks every 5 minutes (UTC). Each job says which ticks it is due on.
+const PLAN: Record<string, Job> = {
+  hourly:      { repo: 'DatumLabMHQ/datum-models', workflow: 'hourly.yml',          when: (m) => m === 5 },
+  tiering:     { repo: 'DatumLabMHQ/datum-models', workflow: 'nightly-tiering.yml', when: (m, h) => h === 3 && m === 40 },
+  shadow:      { repo: 'DatumLabMHQ/SuiLending',   workflow: 'shadow-compare.yml',  when: (m, h) => h === 6 && m === 35 },
+  ping:        { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-ping.yml',     when: () => true },
+  platform:    { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-platform.yml', when: (m) => m % 15 === 0 },
+  content:     { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-content.yml',  inputs: { dry_run: 'false' }, when: (m, h) => h === 7 && m === 10 },
+};
+function due(at: Date): [string, Job][] {
+  const m = at.getUTCMinutes(), h = at.getUTCHours();
+  return Object.entries(PLAN).filter(([, j]) => j.when(m, h));
+}
+
+async function dispatch(env: Env, repo: string, workflow: string, inputs?: Record<string, string>): Promise<string> {
+  const res = await fetch(`https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${env.GITHUB_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': 'datum-scheduler', 'x-github-api-version': '2022-11-28' },
+    body: JSON.stringify({ ref: 'main', ...(inputs ? { inputs } : {}) }),
+  });
+  return `${repo}/${workflow} -> ${res.status}${res.ok ? '' : ' ' + (await res.text()).slice(0, 120)}`;
+}
+
+export default {
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    const jobs = due(new Date(event.scheduledTime));
+    ctx.waitUntil(Promise.all(jobs.map(([name, j]) => dispatch(env, j.repo, j.workflow, j.inputs).then((r) => console.log(name, r)))));
+  },
+  async fetch(req: Request, env: Env) {
+    const url = new URL(req.url);
+    if (url.pathname === '/run' && req.method === 'POST') {
+      // Manual trigger: POST /run?job=hourly  (protected by the same token)
+      if (req.headers.get('authorization') !== `Bearer ${env.GITHUB_TOKEN}`) return new Response('unauthorized', { status: 401 });
+      const name = url.searchParams.get('job') ?? ''; const j = PLAN[name];
+      if (!j) return Response.json({ error: 'unknown job', jobs: Object.keys(PLAN) }, { status: 404 });
+      return Response.json({ job: name, result: await dispatch(env, j.repo, j.workflow, j.inputs) });
+    }
+    return Response.json({ name: 'datum-scheduler', tick: 'every 5 minutes UTC', jobs: Object.fromEntries(Object.entries(PLAN).map(([n, j]) => [n, `${j.repo}/${j.workflow}`])) });
+  },
+};
