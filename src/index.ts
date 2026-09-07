@@ -10,6 +10,7 @@ const PLAN: Record<string, Job> = {
   ping:        { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-ping.yml',     when: () => true },
   platform:    { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-platform.yml', when: (m) => m % 15 === 0 },
   content:     { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-content.yml',  inputs: { dry_run: 'false' }, when: (m, h) => h === 7 && m === 10 },
+  digest:      { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-content-digest.yml', inputs: { dry_run: 'false' }, when: (m, h) => h === 7 && m === 25 },
 };
 function due(at: Date): [string, Job][] {
   const m = at.getUTCMinutes(), h = at.getUTCHours();
