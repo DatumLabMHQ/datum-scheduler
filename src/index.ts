@@ -1,6 +1,6 @@
 export interface Env { GITHUB_TOKEN: string }
 
-type Job = { repo: string; workflow: string; inputs?: Record<string, string>; when: (m: number, h: number) => boolean };
+type Job = { repo: string; workflow: string; inputs?: Record<string, string>; when: (m: number, h: number, d: number) => boolean };
 
 // The worker ticks every 5 minutes (UTC). Each job says which ticks it is due on.
 const PLAN: Record<string, Job> = {
@@ -9,12 +9,17 @@ const PLAN: Record<string, Job> = {
   shadow:      { repo: 'DatumLabMHQ/SuiLending',   workflow: 'shadow-compare.yml',  when: (m, h) => h === 6 && m === 35 },
   ping:        { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-ping.yml',     when: () => true },
   platform:    { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-platform.yml', when: (m) => m % 15 === 0 },
-  content:     { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-content.yml',  inputs: { dry_run: 'false' }, when: (m, h) => h === 7 && m === 10 },
+  // Setnel rules (rules/*.yml): hourly rules at :25 after the platform's hourly build, daily rules at 07:10
+  // after the 00:xx full sweep and its marts, weekly rules Mondays 07:15. The brief email at 07:25 goes out
+  // only when something fired.
+  rulesHourly: { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-content.yml',  inputs: { schedule: 'hourly', dry_run: 'false' }, when: (m) => m === 25 },
+  rulesDaily:  { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-content.yml',  inputs: { schedule: 'daily', dry_run: 'false' },  when: (m, h) => h === 7 && m === 10 },
+  rulesWeekly: { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-content.yml',  inputs: { schedule: 'weekly', dry_run: 'false' }, when: (m, h, d) => d === 1 && h === 7 && m === 15 },
   digest:      { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-content-digest.yml', inputs: { dry_run: 'false' }, when: (m, h) => h === 7 && m === 25 },
 };
 function due(at: Date): [string, Job][] {
-  const m = at.getUTCMinutes(), h = at.getUTCHours();
-  return Object.entries(PLAN).filter(([, j]) => j.when(m, h));
+  const m = at.getUTCMinutes(), h = at.getUTCHours(), d = at.getUTCDay();
+  return Object.entries(PLAN).filter(([, j]) => j.when(m, h, d));
 }
 
 async function dispatch(env: Env, repo: string, workflow: string, inputs?: Record<string, string>): Promise<string> {
