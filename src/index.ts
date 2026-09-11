@@ -22,6 +22,7 @@ const PLAN: Record<string, Job> = {
   rulesDaily:  { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-content.yml',  inputs: { schedule: 'daily', dry_run: 'false' },  when: (m, h) => h === 7 && m === 10 },
   rulesWeekly: { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-content.yml',  inputs: { schedule: 'weekly', dry_run: 'false' }, when: (m, h, d) => d === 1 && h === 7 && m === 15 },
   digest:      { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-content-digest.yml', inputs: { dry_run: 'false' }, when: (m, h) => h === 7 && m === 25 },
+  escalations: { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-escalation-weekly.yml', inputs: { dry_run: 'false' }, when: (m, h, d) => d === 1 && h === 8 && m === 0 },
 };
 function due(at: Date): [string, Job][] {
   const m = at.getUTCMinutes(), h = at.getUTCHours(), d = at.getUTCDay();
