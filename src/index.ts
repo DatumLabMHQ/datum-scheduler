@@ -8,6 +8,12 @@ const PLAN: Record<string, Job> = {
   tiering:     { repo: 'DatumLabMHQ/datum-models', workflow: 'nightly-tiering.yml', when: (m, h) => h === 3 && m === 40 },
   shadow:      { repo: 'DatumLabMHQ/SuiLending',   workflow: 'shadow-compare.yml',  when: (m, h) => h === 6 && m === 35 },
   ping:        { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-ping.yml',     when: () => true },
+  // Setnel ops jobs, moved off GitHub's own cron on 2026-09-11 (it delivered 3 runs in 3 days for */15 schedules).
+  rwa:         { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-rwa.yml',      when: (m) => m % 15 === 10 },
+  analyze:     { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-analyze.yml',  when: (m) => m % 30 === 20 },
+  resolve:     { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-resolve.yml',  when: (m) => m % 30 === 5 },
+  crosscheck:  { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-crosscheck.yml', when: (m) => m === 40 },
+  watchdog:    { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-watchdog.yml', when: (m) => m % 15 === 0 },
   platform:    { repo: 'DatumLabMHQ/setnel',       workflow: 'setnel-platform.yml', when: (m) => m % 15 === 0 },
   // Setnel rules (rules/*.yml): hourly rules at :25 after the platform's hourly build, daily rules at 07:10
   // after the 00:xx full sweep and its marts, weekly rules Mondays 07:15. The brief email at 07:25 goes out
