@@ -1,5 +1,7 @@
 # datum-scheduler
 
+> Part of [Atlas](https://github.com/DatumLabMHQ/atlas), Datum Labs' internal data infrastructure. Start there for how the parts fit together.
+
 The clock for Datum's scheduled jobs. GitHub's own cron delays workflow runs by hours under load, so this
 Cloudflare Worker (Datum Labs account) dispatches each workflow through the GitHub API on time. The mapping
 from cron to workflow lives in `src/index.ts`; the trigger list in `wrangler.toml` must contain the same crons.
