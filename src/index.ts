@@ -26,6 +26,8 @@ const PLAN: Record<string, Job> = {
 
   // ── Setnel node jobs — still dispatched (real code + DB/secrets), frequency cut to save minutes
   //    (Stage 2). Was every 15 min for all three. ──
+  // News feed: pull sources and correlate against our data (Setnel /api/v1/news), every 30 min at :15 and :45.
+  news:        { when: (m) => m % 30 === 15, urls: (e) => [`https://setnel.datumlab.xyz/api/v1/news?key=${e.SETNEL_CRON_SECRET}`] },
   watchdog:    { repo: 'DatumLabMHQ/setnel', workflow: 'setnel-watchdog.yml', when: (m) => m % 30 === 0 },  // 15m -> 30m
   platform:    { repo: 'DatumLabMHQ/setnel', workflow: 'setnel-platform.yml', when: (m) => m % 60 === 0 },  // 15m -> 60m
   rwa:         { repo: 'DatumLabMHQ/setnel', workflow: 'setnel-rwa.yml',      when: (m) => m % 60 === 10 }, // 15m -> 60m
