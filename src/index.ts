@@ -1,11 +1,11 @@
-export interface Env { GITHUB_TOKEN: string; SUILENDING_CRON_SECRET?: string; LIQUIDATOR_CRON_SECRET?: string }
+export interface Env { GITHUB_TOKEN: string; SUILENDING_CRON_SECRET?: string; LIQUIDATOR_CRON_SECRET?: string; LENDING_CRON_SECRET?: string }
 
 type When = (m: number, h: number, d: number) => boolean;
 // A job either dispatches a GitHub workflow or calls an app's cron route directly (the routes that
 // Vercel Cron used to call). HTTP jobs send `Authorization: Bearer <secret>` and are skipped while
 // their secret is unset, so a route never gets called without auth.
 type DispatchJob = { repo: string; workflow: string; inputs?: Record<string, string>; when: When };
-type HttpJob = { url: string; secret: 'SUILENDING_CRON_SECRET' | 'LIQUIDATOR_CRON_SECRET'; when: When };
+type HttpJob = { url: string; method?: 'GET' | 'POST'; secret: 'SUILENDING_CRON_SECRET' | 'LIQUIDATOR_CRON_SECRET' | 'LENDING_CRON_SECRET'; when: When };
 type Job = DispatchJob | HttpJob;
 
 const SUI = 'https://suilending.datumlabs.workers.dev';
@@ -25,6 +25,8 @@ SUI_CRONS['sui:navi-index-wallets'] = { url: `${SUI}/api/navi/cron/index-wallets
 const PLAN: Record<string, Job> = {
   ...SUI_CRONS,
   // Liquidator Economy: incremental on-chain liquidation scan, hourly so each run stays small (Workers CPU limit).
+  // Lending Intelligence Terminal: daily sector snapshot (was the separate lending-terminal-cron Worker).
+  lendingSectorSnapshot: { url: 'https://lending-intelligence-terminal.datumlabs.workers.dev/api/cron/sector-snapshot', method: 'POST', secret: 'LENDING_CRON_SECRET', when: daily(1, 0) },
   liquidatorScan: { url: 'https://liquidator-economy-dashboard.datumlabs.workers.dev/api/cron/scan-liquidations', secret: 'LIQUIDATOR_CRON_SECRET', when: (m) => m === 50 },
   hourly:      { repo: 'DatumLabMHQ/datum-models', workflow: 'hourly.yml',          when: (m) => m === 5 },
   tiering:     { repo: 'DatumLabMHQ/datum-models', workflow: 'nightly-tiering.yml', when: (m, h) => h === 3 && m === 40 },
@@ -54,7 +56,7 @@ function due(at: Date): [string, Job][] {
 async function call(env: Env, j: HttpJob): Promise<string> {
   const secret = env[j.secret];
   if (!secret) return `${j.url} -> skipped (${j.secret} not set)`;
-  const res = await fetch(j.url, { headers: { authorization: `Bearer ${secret}`, 'user-agent': 'datum-scheduler' } });
+  const res = await fetch(j.url, { method: j.method ?? 'GET', headers: { authorization: `Bearer ${secret}`, 'user-agent': 'datum-scheduler' } });
   return `${j.url} -> ${res.status}${res.ok ? '' : ' ' + (await res.text()).slice(0, 120)}`;
 }
 
