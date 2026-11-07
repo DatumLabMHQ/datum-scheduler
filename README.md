@@ -7,4 +7,8 @@ Cloudflare Worker (Datum Labs account) dispatches each workflow through the GitH
 from cron to workflow lives in `src/index.ts`; the trigger list in `wrangler.toml` must contain the same crons.
 
 Secret `GITHUB_TOKEN`: a fine-grained token with Actions read and write on datum-models, SuiLending and setnel.
+
+It also calls app cron routes directly (what Vercel Cron used to do): SuiLending's 19 daily data crons and the
+Liquidator Economy hourly scan, with `Authorization: Bearer <secret>`. Secrets `SUILENDING_CRON_SECRET` and
+`LIQUIDATOR_CRON_SECRET` must equal each app's `CRON_SECRET`; a job is skipped while its secret is unset.
 Deploy: `CLOUDFLARE_ACCOUNT_ID=c9bf3d8e875ffe933a9bf895695e0fd1 npx wrangler@latest deploy`.
